@@ -1,0 +1,21 @@
+// Prisma schema file for Nail Art & Beauty E-Commerce
+// Phase 0: Project Technical Foundation
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Initial placeholder / health verification model
+// Full business models (Product, Category, Inventory, Cart, Order, User)
+// will be defined in their respective development phases.
+model HealthCheck {
+  id        String   @id @default(uuid())
+  timestamp DateTime @default(now())
+  note      String?
+}
+
