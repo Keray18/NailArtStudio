@@ -1,20 +1,15 @@
-import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
-import '@/styles/globals.css';
-
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-});
-
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-});
+import type { Metadata } from "next";
+import "@/styles/globals.css";
+import { BRAND_CONFIG } from "@/config/brand";
+import { CartProvider } from "@/hooks/useCart";
+import { WishlistProvider } from "@/hooks/useWishlist";
+import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
+import { CartDrawer } from "@/components/cart/CartDrawer";
 
 export const metadata: Metadata = {
-  title: 'Nail Art & Beauty E-Commerce | Phase 0 Technical Foundation',
-  description: 'Technical foundation for production-ready nail art and beauty e-commerce application.',
+  title: `${BRAND_CONFIG.name} — ${BRAND_CONFIG.tagline}`,
+  description: BRAND_CONFIG.shortDescription,
 };
 
 export default function RootLayout({
@@ -23,8 +18,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-      <body className="min-h-screen flex flex-col">{children}</body>
+    <html lang="en">
+      <body className="flex flex-col min-h-screen bg-ivory text-espresso font-sans antialiased">
+        <WishlistProvider>
+          <CartProvider>
+            <Header />
+            <main className="flex-1">{children}</main>
+            <CartDrawer />
+            <Footer />
+          </CartProvider>
+        </WishlistProvider>
+      </body>
     </html>
   );
 }
+

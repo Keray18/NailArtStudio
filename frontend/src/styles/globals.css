@@ -1,37 +1,47 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Manrope:wght@300;400;500;600;700&display=swap');
 
-:root {
-  --background: #fdfaf7;
-  --foreground: #1c1917;
-  --surface: #ffffff;
-  --border: #e7e5e4;
-  --muted: #78716c;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-surface: var(--surface);
-  --color-border: var(--border);
-  --color-muted: var(--muted);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0c0a09;
-    --foreground: #fafaf9;
-    --surface: #1c1917;
-    --border: #292524;
-    --muted: #a8a29e;
+    --font-cormorant: 'Cormorant Garamond', Georgia, serif;
+    --font-manrope: 'Manrope', system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    @apply bg-ivory text-espresso font-sans antialiased selection:bg-blush selection:text-espresso;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-serif text-espresso;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
-  min-height: 100vh;
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F1E9E3;
+}
+::-webkit-scrollbar-thumb {
+  background: #E8CFCB;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #A86F78;
+}
+
+/* Focus Ring Utility */
+.focus-ring {
+  @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-rose focus-visible:ring-offset-2 focus-visible:ring-offset-ivory;
+}
+
+/* Mobile Safe Bottom Spacing */
+.safe-bottom-padding {
+  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
 }
 
