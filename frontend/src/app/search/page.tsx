@@ -18,19 +18,42 @@ function SearchContent() {
   const [results, setResults] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (initialQuery.trim()) {
+    let isMounted = true;
+    const clean = initialQuery.trim();
+
+    if (clean) {
       setIsLoading(true);
-      catalogueService.searchProducts(initialQuery).then((data) => {
-        setResults(data);
-        setIsLoading(false);
-        setSearched(true);
-      });
+      setErrorMessage(null);
+
+      catalogueService
+        .searchProducts(clean)
+        .then((data) => {
+          if (isMounted) {
+            setResults(data);
+            setIsLoading(false);
+            setSearched(true);
+          }
+        })
+        .catch(() => {
+          if (isMounted) {
+            setResults([]);
+            setErrorMessage("Search is temporarily unavailable. Please try again shortly.");
+            setIsLoading(false);
+            setSearched(true);
+          }
+        });
     } else {
       setResults([]);
       setSearched(false);
+      setErrorMessage(null);
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, [initialQuery]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -101,8 +124,15 @@ function SearchContent() {
         </div>
       </div>
 
+      {/* Error State */}
+      {errorMessage && (
+        <div className="p-6 rounded-xl bg-status-error/10 border border-status-error/30 text-center max-w-lg mx-auto">
+          <p className="text-sm font-semibold text-status-error">{errorMessage}</p>
+        </div>
+      )}
+
       {/* Results Header */}
-      {searched && (
+      {!errorMessage && searched && (
         <div className="border-b border-blush/60 pb-3 flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-wider text-espresso/70">
             {results.length} {results.length === 1 ? "Result" : "Results"} for &ldquo;{initialQuery}&rdquo;

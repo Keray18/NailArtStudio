@@ -1,4 +1,5 @@
 import React from "react";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { catalogueService } from "@/services/catalogueService";
@@ -31,17 +32,49 @@ const CATEGORY_METADATA: Record<CategorySlug, { name: string; description: strin
   },
 };
 
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const categories = await catalogueService.getCategories().catch(() => []);
+  const dbCat = categories.find((c) => c.slug === slug);
+  const fallbackMeta = CATEGORY_METADATA[slug as CategorySlug];
+  const name = dbCat?.name || fallbackMeta?.name || "Category";
+  const description = dbCat?.description || fallbackMeta?.description || `Explore ${name} at The Nail Lounge.`;
+
+  return {
+    title: name,
+    description,
+    alternates: {
+      canonical: `/category/${slug}`,
+    },
+    openGraph: {
+      title: `${name} | The Nail Lounge`,
+      description,
+    },
+  };
+}
+
 export default async function CategoryPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const meta = CATEGORY_METADATA[slug as CategorySlug];
+  const categories = await catalogueService.getCategories().catch(() => []);
+  const dbCat = categories.find((c) => c.slug === slug);
+  const fallbackMeta = CATEGORY_METADATA[slug as CategorySlug];
 
-  if (!meta) {
+  if (!dbCat && !fallbackMeta) {
     notFound();
   }
+
+  const name = dbCat?.name || fallbackMeta?.name || slug;
+  const description = dbCat?.description || fallbackMeta?.description || "";
 
   const products = await catalogueService.getProductsByCategory(slug as CategorySlug);
 
@@ -52,7 +85,7 @@ export default async function CategoryPage({
       <Breadcrumbs
         items={[
           { label: "Catalogue", href: "/shop" },
-          { label: meta.name },
+          { label: name },
         ]}
       />
 
@@ -62,10 +95,10 @@ export default async function CategoryPage({
             Category Showcase
           </span>
           <h1 className="font-serif text-3xl sm:text-4xl font-semibold text-espresso">
-            {meta.name}
+            {name}
           </h1>
           <p className="text-xs sm:text-sm text-espresso/70 leading-relaxed">
-            {meta.description}
+            {description}
           </p>
         </div>
 
@@ -74,7 +107,7 @@ export default async function CategoryPage({
           className="text-xs font-semibold text-rose hover:text-rose-hover flex items-center gap-1 self-start md:self-auto"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>View All 36 Styles</span>
+          <span>View All Styles</span>
         </Link>
       </div>
 

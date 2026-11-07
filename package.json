@@ -1,0 +1,19 @@
+{
+  "name": "the-nail-lounge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The Nail Lounge — Premium E-Commerce Storefront & Modular Monolith REST API",
+  "scripts": {
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "build:frontend": "npm --prefix frontend run build",
+    "build:backend": "npm --prefix backend run build",
+    "type-check:frontend": "npm --prefix frontend run type-check",
+    "type-check:backend": "npm --prefix backend run type-check",
+    "test:backend": "npm --prefix backend test",
+    "prisma:generate": "npm --prefix backend run prisma:generate",
+    "prisma:validate": "npm --prefix backend run prisma:validate",
+    "seed:backend": "npm --prefix backend run seed"
+  }
+}
+

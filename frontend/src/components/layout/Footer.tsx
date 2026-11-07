@@ -132,11 +132,13 @@ export const Footer: React.FC = () => {
                   Terms of Sale
                 </Link>
               </li>
-              <li className="pt-2 border-t border-espresso-light">
-                <Link href="/design-system" className="text-champagne/80 hover:text-champagne transition-colors text-xs flex items-center gap-1">
-                  <span>Internal UI Token Index</span>
-                </Link>
-              </li>
+              {process.env.NODE_ENV !== "production" && (
+                <li className="pt-2 border-t border-espresso-light">
+                  <Link href="/design-system" className="text-champagne/80 hover:text-champagne transition-colors text-xs flex items-center gap-1">
+                    <span>Internal UI Token Index</span>
+                  </Link>
+                </li>
+              )}
             </ul>
           </div>
         </div>

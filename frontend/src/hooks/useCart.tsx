@@ -31,12 +31,28 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
 
-  // Initialize from localStorage on mount
+  // Initialize and reconcile from localStorage on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem("tnl_cart");
       if (saved) {
-        setItems(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          // Filter out corrupted, incomplete, or invalid cart entries
+          const validItems = parsed.filter(
+            (i: any) =>
+              i &&
+              typeof i.id === "string" &&
+              i.product &&
+              typeof i.product.id === "string" &&
+              i.variant &&
+              typeof i.variant.id === "string" &&
+              typeof i.quantity === "number" &&
+              i.quantity > 0 &&
+              typeof i.unitPrice === "number"
+          );
+          setItems(validItems);
+        }
       }
     } catch {
       // Local storage unreadable or disabled

@@ -1,10 +1,21 @@
 import React from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { catalogueService } from "@/services/catalogueService";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { PrototypeNoticeBanner } from "@/components/layout/PrototypeNoticeBanner";
+
+export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Thematic Collections & Visual Edits",
+  description: "Browse handcrafted nail art collections curated for weddings, clean girl aesthetics, and evening glamour.",
+  alternates: {
+    canonical: "/collections",
+  },
+};
 
 export default async function CollectionsPage() {
   const collections = await catalogueService.getCollections();

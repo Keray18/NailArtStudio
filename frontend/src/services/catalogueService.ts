@@ -1,5 +1,17 @@
 import { Product, Collection, CategorySlug, NailShape, NailFinish, NailLength } from "@/types";
 import { FIXTURE_PRODUCTS, FIXTURE_COLLECTIONS } from "@/data/fixtures";
+import { apiClient, ApiClientError } from "./apiClient";
+import {
+  BackendProductCardDTO,
+  BackendProductDetailDTO,
+  BackendCollectionSummaryDTO,
+  BackendCollectionDetailDTO,
+  BackendCategorySummaryDTO,
+  BackendSearchResponseDTO,
+  mapProductCardToProduct,
+  mapProductDetailToProduct,
+  mapCollectionSummaryToCollection,
+} from "./mappers";
 
 export interface ProductFilters {
   category?: CategorySlug;
@@ -11,12 +23,23 @@ export interface ProductFilters {
   maxPrice?: number;
   inStockOnly?: boolean;
   sortBy?: "featured" | "price-asc" | "price-desc" | "newest";
+  page?: number;
+  limit?: number;
+}
+
+export interface CategoryInfo {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  productCount: number;
 }
 
 export interface ICatalogueService {
   getProducts(filters?: ProductFilters): Promise<Product[]>;
   getProductBySlug(slug: string): Promise<Product | null>;
   getFeaturedProducts(): Promise<Product[]>;
+  getCategories(): Promise<CategoryInfo[]>;
   getCollections(): Promise<Collection[]>;
   getCollectionBySlug(slug: string): Promise<Collection | null>;
   getProductsByCategory(category: CategorySlug): Promise<Product[]>;
@@ -25,6 +48,12 @@ export interface ICatalogueService {
   validatePincode(pincode: string): Promise<{ city: string; state: string; isServiceable: boolean; estimatedDays: string }>;
 }
 
+export type CatalogueRepository = ICatalogueService;
+
+/**
+ * Development Mock Adapter
+ * Explicitly consumed when NEXT_PUBLIC_DATA_SOURCE="mock".
+ */
 export class MockCatalogueAdapter implements ICatalogueService {
   private products: Product[] = FIXTURE_PRODUCTS;
   private collections: Collection[] = FIXTURE_COLLECTIONS;
@@ -96,6 +125,16 @@ export class MockCatalogueAdapter implements ICatalogueService {
     return this.products.filter((p) => p.isFeatured && p.isAvailable);
   }
 
+  async getCategories(): Promise<CategoryInfo[]> {
+    return [
+      { id: "cat-1", name: "Press-on Nails", slug: "press-on-nails", description: "Handcrafted salon-grade press-ons", productCount: 18 },
+      { id: "cat-2", name: "Nail Polish & Gel", slug: "nail-polish-gel", description: "High-pigment formulas", productCount: 6 },
+      { id: "cat-3", name: "Nail Art & Accessories", slug: "nail-accessories", description: "Chrome powders & accents", productCount: 5 },
+      { id: "cat-4", name: "Nail-Art Tools", slug: "nail-tools", description: "Lamps & precision brushes", productCount: 4 },
+      { id: "cat-5", name: "Application & Care Kits", slug: "application-kits", description: "Preparation & removal kits", productCount: 3 },
+    ];
+  }
+
   async getCollections(): Promise<Collection[]> {
     return this.collections;
   }
@@ -117,53 +156,31 @@ export class MockCatalogueAdapter implements ICatalogueService {
     const q = query.toLowerCase().trim();
     if (!q) return [];
 
-    return this.products.filter((p) => {
-      const matchName = p.name.toLowerCase().includes(q);
-      const matchDesc = p.shortDescription.toLowerCase().includes(q);
-      const matchCat = p.category.name.toLowerCase().includes(q);
-      const matchShape = p.attributes?.shape?.toLowerCase().includes(q);
-      const matchFinish = p.attributes?.finish?.toLowerCase().includes(q);
-      return matchName || matchDesc || matchCat || matchShape || matchFinish;
-    });
+    return this.products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.shortDescription.toLowerCase().includes(q) ||
+        p.description.toLowerCase().includes(q) ||
+        p.category.name.toLowerCase().includes(q) ||
+        p.attributes?.shape?.toLowerCase().includes(q) ||
+        p.attributes?.finish?.toLowerCase().includes(q)
+    );
   }
 
   async validatePincode(pincode: string): Promise<{ city: string; state: string; isServiceable: boolean; estimatedDays: string }> {
     const cleanPin = pincode.trim();
-    if (cleanPin.length !== 6 || !/^\d{6}$/.test(cleanPin)) {
-      return { city: "", state: "", isServiceable: false, estimatedDays: "" };
+    if (!/^\d{6}$/.test(cleanPin)) {
+      return {
+        city: "",
+        state: "",
+        isServiceable: false,
+        estimatedDays: "",
+      };
     }
 
-    // Deterministic Indian postal regions mapping for prototype
-    const prefix = cleanPin.substring(0, 2);
-    let state = "Punjab";
-    let city = "Abohar";
-    let estimatedDays = "2–3 business days";
-
-    if (cleanPin === "152116") {
-      city = "Abohar";
-      state = "Punjab";
-      estimatedDays = "1–2 business days (Local Studio Dispatch)";
-    } else if (prefix === "14" || prefix === "15" || prefix === "16") {
-      state = "Punjab / Chandigarh";
-      city = "Chandigarh / Ludhiana";
-      estimatedDays = "2–3 business days";
-    } else if (prefix === "11") {
-      state = "Delhi NCR";
-      city = "New Delhi";
-      estimatedDays = "2–4 business days";
-    } else if (prefix === "40" || prefix === "41") {
-      state = "Maharashtra";
-      city = "Mumbai / Pune";
-      estimatedDays = "3–5 business days";
-    } else if (prefix === "56") {
-      state = "Karnataka";
-      city = "Bengaluru";
-      estimatedDays = "3–5 business days";
-    } else {
-      state = "India";
-      city = "Rest of India";
-      estimatedDays = "4–6 business days";
-    }
+    const state = cleanPin.startsWith("15") ? "Punjab" : cleanPin.startsWith("11") ? "Delhi" : cleanPin.startsWith("40") ? "Maharashtra" : "India";
+    const city = cleanPin.startsWith("152116") ? "Abohar (Local Express)" : cleanPin.startsWith("15") ? "Bathinda / Punjab" : cleanPin.startsWith("11") ? "New Delhi" : "Metro Center";
+    const estimatedDays = cleanPin.startsWith("152116") ? "Same Day / Next Day" : cleanPin.startsWith("15") ? "2–3 Business Days" : "3–5 Business Days";
 
     return {
       city,
@@ -174,6 +191,161 @@ export class MockCatalogueAdapter implements ICatalogueService {
   }
 }
 
-// Singleton export of catalogue service adapter
-export const catalogueService: ICatalogueService = new MockCatalogueAdapter();
+/**
+ * Production-ready HTTP Catalogue Adapter.
+ * Connects directly to the Express REST API (/api/v1).
+ * Never silently falls back to mock fixture data on API failure.
+ */
+export class HttpCatalogueAdapter implements CatalogueRepository {
+  constructor(private client = apiClient) {}
 
+  async getProducts(filters?: ProductFilters): Promise<Product[]> {
+    const params: Record<string, string | number | boolean | undefined> = {};
+
+    if (filters) {
+      if (filters.category) params.category = filters.category;
+      if (filters.collection) params.collection = filters.collection;
+      if (filters.shape) params.shape = filters.shape;
+      if (filters.length) params.length = filters.length;
+      if (filters.finish) params.finish = filters.finish;
+      if (filters.minPrice !== undefined) params.minPrice = filters.minPrice;
+      if (filters.maxPrice !== undefined) params.maxPrice = filters.maxPrice;
+      if (filters.inStockOnly) params.inStockOnly = true;
+      if (filters.sortBy) params.sort = filters.sortBy;
+      if (filters.page) params.page = filters.page;
+      if (filters.limit) params.limit = filters.limit;
+      else params.limit = 48; // Bounded fetch for full catalog views
+    }
+
+    const dtos = await this.client.get<BackendProductCardDTO[]>("/products", { params });
+    return dtos.map(mapProductCardToProduct);
+  }
+
+  async getProductBySlug(slug: string): Promise<Product | null> {
+    try {
+      const cleanSlug = slug.trim().toLowerCase();
+      const dto = await this.client.get<BackendProductDetailDTO>(`/products/${cleanSlug}`);
+      return mapProductDetailToProduct(dto);
+    } catch (error) {
+      if (error instanceof ApiClientError && error.statusCode === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async getFeaturedProducts(): Promise<Product[]> {
+    const dtos = await this.client.get<BackendProductCardDTO[]>("/products", {
+      params: { limit: 12, sort: "featured" },
+    });
+    return dtos.filter((d) => d.isFeatured).map(mapProductCardToProduct);
+  }
+
+  async getCategories(): Promise<CategoryInfo[]> {
+    const dtos = await this.client.get<BackendCategorySummaryDTO[]>("/categories");
+    return dtos.map((c) => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      description: c.description,
+      productCount: c.productCount,
+    }));
+  }
+
+  async getCollections(): Promise<Collection[]> {
+    const dtos = await this.client.get<BackendCollectionSummaryDTO[]>("/collections");
+    return dtos.map(mapCollectionSummaryToCollection);
+  }
+
+  async getCollectionBySlug(slug: string): Promise<Collection | null> {
+    try {
+      const cleanSlug = slug.trim().toLowerCase();
+      const dto = await this.client.get<BackendCollectionDetailDTO>(`/collections/${cleanSlug}`);
+      return mapCollectionSummaryToCollection(dto);
+    } catch (error) {
+      if (error instanceof ApiClientError && error.statusCode === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async getProductsByCategory(category: CategorySlug): Promise<Product[]> {
+    const dtos = await this.client.get<BackendProductCardDTO[]>("/products", {
+      params: { category, limit: 48 },
+    });
+    return dtos.map(mapProductCardToProduct);
+  }
+
+  async getProductsByCollection(collectionSlug: string): Promise<Product[]> {
+    const dtos = await this.client.get<BackendProductCardDTO[]>("/products", {
+      params: { collection: collectionSlug, limit: 48 },
+    });
+    return dtos.map(mapProductCardToProduct);
+  }
+
+  async searchProducts(query: string): Promise<Product[]> {
+    const q = query.trim();
+    if (!q) return [];
+
+    try {
+      const response = await this.client.get<BackendSearchResponseDTO>("/search", {
+        params: { q, limit: 48 },
+      });
+      return response.products.map(mapProductCardToProduct);
+    } catch (error) {
+      if (error instanceof ApiClientError && error.statusCode === 400) {
+        return [];
+      }
+      throw error;
+    }
+  }
+
+  async validatePincode(pincode: string): Promise<{ city: string; state: string; isServiceable: boolean; estimatedDays: string }> {
+    // Client pincode heuristic for Punjab & Indian metro serviceability
+    const cleanPin = pincode.trim();
+    if (!/^\d{6}$/.test(cleanPin)) {
+      return {
+        city: "",
+        state: "",
+        isServiceable: false,
+        estimatedDays: "",
+      };
+    }
+
+    const state = cleanPin.startsWith("15") ? "Punjab" : cleanPin.startsWith("11") ? "Delhi" : cleanPin.startsWith("40") ? "Maharashtra" : "India";
+    const city = cleanPin.startsWith("152116") ? "Abohar (Local Express)" : cleanPin.startsWith("15") ? "Bathinda / Punjab" : cleanPin.startsWith("11") ? "New Delhi" : "Metro Center";
+    const estimatedDays = cleanPin.startsWith("152116") ? "Same Day / Next Day" : cleanPin.startsWith("15") ? "2–3 Business Days" : "3–5 Business Days";
+
+    return {
+      city,
+      state,
+      isServiceable: true,
+      estimatedDays,
+    };
+  }
+}
+
+/**
+ * Factory for creating the active catalogue repository.
+ * In API mode (default), connects directly to Express REST endpoints.
+ * Never allows fictional fixtures in a production build.
+ */
+export function createCatalogueService(): CatalogueRepository {
+  const dataSource = (process.env.NEXT_PUBLIC_DATA_SOURCE || "api").toLowerCase();
+  const isProduction = process.env.NODE_ENV === "production";
+
+  if (dataSource === "mock") {
+    if (isProduction) {
+      throw new Error(
+        "[SECURITY VIOLATION] MockCatalogueAdapter cannot be activated in a PRODUCTION environment build."
+      );
+    }
+    return new MockCatalogueAdapter();
+  }
+
+  return new HttpCatalogueAdapter();
+}
+
+// Active singleton repository export
+export const catalogueService: CatalogueRepository = createCatalogueService();

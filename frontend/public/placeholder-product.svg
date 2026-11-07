@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" width="800" height="1000">
+  <defs>
+    <linearGradient id="editorialGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBF8F5"/>
+      <stop offset="50%" stop-color="#F5EFEB"/>
+      <stop offset="100%" stop-color="#EFE6E0"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="1000" fill="url(#editorialGrad)"/>
+  <rect x="40" y="40" width="720" height="920" fill="none" stroke="#E2D7D0" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <g transform="translate(400, 480)" text-anchor="middle">
+    <circle cx="0" cy="-60" r="44" fill="#E8CFCB" opacity="0.6"/>
+    <!-- Stylized nail art icon -->
+    <path d="M-14 -40 C-14 -70 14 -70 14 -40 L10 -15 C10 -10 -10 -10 -10 -15 Z" fill="#A86F78" opacity="0.85"/>
+    <text y="20" font-family="'Playfair Display', Georgia, serif" font-size="24" font-weight="600" fill="#453438" letter-spacing="1.5">THE NAIL LOUNGE</text>
+    <text y="48" font-family="'Plus Jakarta Sans', system-ui, sans-serif" font-size="12" font-weight="500" fill="#8C7A7E" letter-spacing="2" text-transform="uppercase">Visual Placeholder</text>
+    <text y="74" font-family="'Plus Jakarta Sans', system-ui, sans-serif" font-size="11" fill="#B0A2A5">Development Reference Image</text>
+  </g>
+</svg>
+

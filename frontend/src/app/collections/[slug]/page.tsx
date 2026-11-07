@@ -1,4 +1,5 @@
 import React from "react";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -7,6 +8,34 @@ import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { ProductGrid } from "@/components/catalog/ProductGrid";
 import { PrototypeNoticeBanner } from "@/components/layout/PrototypeNoticeBanner";
 import { Sparkles, ArrowLeft } from "lucide-react";
+
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const collection = await catalogueService.getCollectionBySlug(slug).catch(() => null);
+
+  if (!collection) {
+    return { title: "Collection Not Found" };
+  }
+
+  return {
+    title: collection.name,
+    description: collection.description || collection.tagline || `Browse ${collection.name} at The Nail Lounge.`,
+    alternates: {
+      canonical: `/collections/${slug}`,
+    },
+    openGraph: {
+      title: `${collection.name} | The Nail Lounge`,
+      description: collection.description || collection.tagline,
+      images: collection.bannerImage ? [{ url: collection.bannerImage }] : [],
+    },
+  };
+}
 
 export default async function CollectionDetailPage({
   params,

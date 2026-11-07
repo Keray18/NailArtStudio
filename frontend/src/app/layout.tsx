@@ -8,8 +8,17 @@ import { Footer } from "@/components/layout/Footer";
 import { CartDrawer } from "@/components/cart/CartDrawer";
 
 export const metadata: Metadata = {
-  title: `${BRAND_CONFIG.name} — ${BRAND_CONFIG.tagline}`,
+  title: {
+    default: `${BRAND_CONFIG.name} — ${BRAND_CONFIG.tagline}`,
+    template: `%s | ${BRAND_CONFIG.name}`,
+  },
   description: BRAND_CONFIG.shortDescription,
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  robots: {
+    // Prevent development fixture preview sites from being indexed in search engines
+    index: process.env.NODE_ENV === "production" && process.env.NEXT_PUBLIC_DATA_SOURCE === "api",
+    follow: true,
+  },
 };
 
 export default function RootLayout({

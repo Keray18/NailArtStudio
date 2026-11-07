@@ -1,37 +1,106 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, Suspense, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { ProductGrid } from "@/components/catalog/ProductGrid";
 import { FilterSidebar } from "@/components/catalog/FilterSidebar";
 import { MobileFilterDrawer } from "@/components/catalog/MobileFilterDrawer";
 import { SortDropdown } from "@/components/catalog/SortDropdown";
 import { catalogueService, ProductFilters } from "@/services/catalogueService";
-import { Product } from "@/types";
+import { Product, CategorySlug, NailShape, NailLength, NailFinish } from "@/types";
 import { Filter, X } from "lucide-react";
 import { PrototypeNoticeBanner } from "@/components/layout/PrototypeNoticeBanner";
 
-export default function ShopAllPage() {
+function ShopContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Parse initial filters from URL query parameters
+  const parseFiltersFromParams = useCallback((): ProductFilters => {
+    const category = searchParams.get("category") as CategorySlug | null;
+    const collection = searchParams.get("collection") || undefined;
+    const shape = searchParams.get("shape") as NailShape | null;
+    const length = searchParams.get("length") as NailLength | null;
+    const finish = searchParams.get("finish") as NailFinish | null;
+    const minPrice = searchParams.get("minPrice") ? Number(searchParams.get("minPrice")) : undefined;
+    const maxPrice = searchParams.get("maxPrice") ? Number(searchParams.get("maxPrice")) : undefined;
+    const inStockOnly = searchParams.get("inStockOnly") === "true";
+    const sortBy = (searchParams.get("sort") || "featured") as "featured" | "price-asc" | "price-desc" | "newest";
+
+    return {
+      category: category || undefined,
+      collection,
+      shape: shape || undefined,
+      length: length || undefined,
+      finish: finish || undefined,
+      minPrice,
+      maxPrice,
+      inStockOnly,
+      sortBy,
+    };
+  }, [searchParams]);
+
+  const [filters, setFilters] = useState<ProductFilters>(parseFiltersFromParams);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
-  // Filter state
-  const [filters, setFilters] = useState<ProductFilters>({
-    sortBy: "featured",
-  });
+  // Sync internal state when URL search params change (e.g., browser back/forward)
+  useEffect(() => {
+    setFilters(parseFiltersFromParams());
+  }, [parseFiltersFromParams]);
+
+  // Update URL search parameters when filters change
+  const updateUrlParams = useCallback(
+    (newFilters: ProductFilters) => {
+      const params = new URLSearchParams();
+
+      if (newFilters.category) params.set("category", newFilters.category);
+      if (newFilters.collection) params.set("collection", newFilters.collection);
+      if (newFilters.shape) params.set("shape", newFilters.shape);
+      if (newFilters.length) params.set("length", newFilters.length);
+      if (newFilters.finish) params.set("finish", newFilters.finish);
+      if (newFilters.minPrice !== undefined) params.set("minPrice", String(newFilters.minPrice));
+      if (newFilters.maxPrice !== undefined) params.set("maxPrice", String(newFilters.maxPrice));
+      if (newFilters.inStockOnly) params.set("inStockOnly", "true");
+      if (newFilters.sortBy && newFilters.sortBy !== "featured") params.set("sort", newFilters.sortBy);
+
+      const queryString = params.toString();
+      const targetUrl = queryString ? `${pathname}?${queryString}` : pathname;
+      router.replace(targetUrl, { scroll: false });
+    },
+    [pathname, router]
+  );
+
+  const handleFilterChange = (newFilters: ProductFilters | ((prev: ProductFilters) => ProductFilters)) => {
+    setFilters((prev) => {
+      const next = typeof newFilters === "function" ? newFilters(prev) : newFilters;
+      updateUrlParams(next);
+      return next;
+    });
+  };
 
   // Fetch products whenever filters change
   useEffect(() => {
     let isMounted = true;
     setIsLoading(true);
 
-    catalogueService.getProducts(filters).then((data) => {
-      if (isMounted) {
-        setProducts(data);
-        setIsLoading(false);
-      }
-    });
+    catalogueService
+      .getProducts(filters)
+      .then((data) => {
+        if (isMounted) {
+          setProducts(data);
+          setIsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setProducts([]);
+          setIsLoading(false);
+        }
+      });
 
     return () => {
       isMounted = false;
@@ -39,7 +108,7 @@ export default function ShopAllPage() {
   }, [filters]);
 
   const handleResetFilters = () => {
-    setFilters({ sortBy: "featured" });
+    handleFilterChange({ sortBy: "featured" });
   };
 
   // Active filter pills for quick dismissal
@@ -49,31 +118,37 @@ export default function ShopAllPage() {
     if (filters.category) {
       list.push({
         label: `Category: ${filters.category.replace(/-/g, " ")}`,
-        clear: () => setFilters((prev) => ({ ...prev, category: undefined })),
+        clear: () => handleFilterChange((prev) => ({ ...prev, category: undefined })),
+      });
+    }
+    if (filters.collection) {
+      list.push({
+        label: `Collection: ${filters.collection.replace(/-/g, " ")}`,
+        clear: () => handleFilterChange((prev) => ({ ...prev, collection: undefined })),
       });
     }
     if (filters.shape) {
       list.push({
         label: `Shape: ${filters.shape}`,
-        clear: () => setFilters((prev) => ({ ...prev, shape: undefined })),
+        clear: () => handleFilterChange((prev) => ({ ...prev, shape: undefined })),
       });
     }
     if (filters.length) {
       list.push({
         label: `Length: ${filters.length}`,
-        clear: () => setFilters((prev) => ({ ...prev, length: undefined })),
+        clear: () => handleFilterChange((prev) => ({ ...prev, length: undefined })),
       });
     }
     if (filters.finish) {
       list.push({
         label: `Finish: ${filters.finish}`,
-        clear: () => setFilters((prev) => ({ ...prev, finish: undefined })),
+        clear: () => handleFilterChange((prev) => ({ ...prev, finish: undefined })),
       });
     }
     if (filters.inStockOnly) {
       list.push({
         label: "In Stock Only",
-        clear: () => setFilters((prev) => ({ ...prev, inStockOnly: false })),
+        clear: () => handleFilterChange((prev) => ({ ...prev, inStockOnly: false })),
       });
     }
     if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
@@ -82,7 +157,7 @@ export default function ShopAllPage() {
           filters.maxPrice ? `₹${filters.maxPrice}` : "Above"
         }`,
         clear: () =>
-          setFilters((prev) => ({ ...prev, minPrice: undefined, maxPrice: undefined })),
+          handleFilterChange((prev) => ({ ...prev, minPrice: undefined, maxPrice: undefined })),
       });
     }
 
@@ -120,7 +195,7 @@ export default function ShopAllPage() {
           {/* Sort Dropdown */}
           <SortDropdown
             value={filters.sortBy || "featured"}
-            onChange={(sort) => setFilters((prev) => ({ ...prev, sortBy: sort }))}
+            onChange={(sort) => handleFilterChange((prev) => ({ ...prev, sortBy: sort }))}
           />
         </div>
       </div>
@@ -159,7 +234,7 @@ export default function ShopAllPage() {
         <aside className="hidden lg:block lg:col-span-1 sticky top-28 bg-white p-5 rounded-xl border border-blush shadow-card">
           <FilterSidebar
             filters={filters}
-            onChange={setFilters}
+            onChange={handleFilterChange}
             onReset={handleResetFilters}
           />
         </aside>
@@ -179,7 +254,7 @@ export default function ShopAllPage() {
         isOpen={isMobileFilterOpen}
         onClose={() => setIsMobileFilterOpen(false)}
         filters={filters}
-        onChange={setFilters}
+        onChange={handleFilterChange}
         onReset={handleResetFilters}
         resultCount={products.length}
       />
@@ -187,3 +262,17 @@ export default function ShopAllPage() {
   );
 }
 
+export default function ShopAllPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-7xl mx-auto px-4 py-16 text-center">
+          <div className="w-8 h-8 border-2 border-rose border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="font-serif text-sm text-espresso/60">Loading Catalogue...</p>
+        </div>
+      }
+    >
+      <ShopContent />
+    </Suspense>
+  );
+}

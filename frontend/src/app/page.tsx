@@ -8,17 +8,28 @@ import { ProductCard } from "@/components/catalog/ProductCard";
 import { Button } from "@/components/ui/Button";
 import { PrototypeNoticeBanner } from "@/components/layout/PrototypeNoticeBanner";
 
-export default async function HomePage() {
-  const featuredProducts = await catalogueService.getFeaturedProducts();
-  const collections = await catalogueService.getCollections();
+export const dynamic = "force-dynamic";
 
-  const categories = [
-    { name: "Press-on Nails", slug: "press-on-nails", count: "18 Styles" },
-    { name: "Polish & Gels", slug: "nail-polish-gel", count: "6 Formulas" },
-    { name: "Art Accessories", slug: "nail-accessories", count: "5 Accents" },
-    { name: "Tools & Equipment", slug: "nail-tools", count: "4 Tools" },
-    { name: "Application Kits", slug: "application-kits", count: "3 Care Sets" },
-  ];
+export default async function HomePage() {
+  const [featuredProducts, collections, categoriesData] = await Promise.all([
+    catalogueService.getFeaturedProducts().catch(() => []),
+    catalogueService.getCollections().catch(() => []),
+    catalogueService.getCategories().catch(() => []),
+  ]);
+
+  const categories = categoriesData.length > 0
+    ? categoriesData.map((c) => ({
+        name: c.name,
+        slug: c.slug,
+        count: `${c.productCount} Styles`,
+      }))
+    : [
+        { name: "Press-on Nails", slug: "press-on-nails", count: "Explore" },
+        { name: "Polish & Gels", slug: "nail-polish-gel", count: "Explore" },
+        { name: "Art Accessories", slug: "nail-accessories", count: "Explore" },
+        { name: "Tools & Equipment", slug: "nail-tools", count: "Explore" },
+        { name: "Application Kits", slug: "application-kits", count: "Explore" },
+      ];
 
   return (
     <div className="space-y-12 sm:space-y-16 pb-16">
@@ -141,16 +152,27 @@ export default async function HomePage() {
             </h2>
           </div>
           <Link href="/shop" className="text-xs font-semibold text-rose hover:text-rose-hover flex items-center gap-1 self-start sm:self-auto">
-            <span>Explore All 36 Styles</span>
+            <span>Explore Entire Collection</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-6">
-          {featuredProducts.slice(0, 4).map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {featuredProducts.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-6">
+            {featuredProducts.slice(0, 4).map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        ) : (
+          <div className="py-12 text-center rounded-xl border border-blush/60 bg-ivory-subtle p-8">
+            <Sparkles className="w-8 h-8 text-rose/50 mx-auto mb-2" />
+            <p className="font-serif text-lg text-espresso/70">New seasonal edits arriving soon.</p>
+            <p className="text-xs text-espresso/50 mt-1">Visit our full shop to explore handcrafted sets.</p>
+            <Link href="/shop" className="inline-block mt-4">
+              <Button variant="outline" size="sm">Browse Shop</Button>
+            </Link>
+          </div>
+        )}
       </section>
 
       {/* 5. Shop by Mood & Occasion */}
