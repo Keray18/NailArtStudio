@@ -28,6 +28,7 @@ enum OrderStatus {
 
 enum PaymentStatus {
   PENDING
+  PENDING_VERIFICATION
   PAID
   FAILED
   REFUNDED
@@ -36,6 +37,7 @@ enum PaymentStatus {
 enum PaymentMethod {
   COD
   ONLINE_MOCK
+  UPI_MANUAL
 }
 
 // ------------------------------------------------------------------------------
@@ -82,6 +84,7 @@ model Product {
   isFeatured       Boolean  @default(false)
   isActive         Boolean  @default(true)
   isPublished      Boolean  @default(false)
+  weightGrams      Int?     @default(40)
   packageContents  String?  @db.Text
   applicationGuide String?  @db.Text
   removalGuide     String?  @db.Text
@@ -160,6 +163,7 @@ model ProductVariant {
   compareAtPrice Decimal? @db.Decimal(10, 2)
   isAvailable    Boolean  @default(true)
   isPublished    Boolean  @default(false)
+  weightGrams    Int?     @default(40)
   sortOrder      Int      @default(0)
   createdAt      DateTime @default(now()) @db.Timestamptz(6)
   updatedAt      DateTime @updatedAt @db.Timestamptz(6)
@@ -342,18 +346,26 @@ model Order {
   id                      String        @id @default(uuid()) @db.Uuid
   orderNumber             String        @unique @db.VarChar(50)
   orderAccessToken        String        @default(uuid()) @db.Uuid
+  idempotencyKey          String?       @unique @db.VarChar(128)
   customerId              String        @db.Uuid
   status                  OrderStatus   @default(PENDING)
   paymentMethod           PaymentMethod @default(COD)
   paymentStatus           PaymentStatus @default(PENDING)
+  paymentReference        String?       @db.VarChar(100)
+  paymentNotes            String?       @db.Text
+  verificationStatus      String        @default("UNVERIFIED") @db.VarChar(30)
   subtotal                Decimal       @db.Decimal(10, 2)
   discountTotal           Decimal       @default(0.00) @db.Decimal(10, 2)
   shippingFee             Decimal       @default(0.00) @db.Decimal(10, 2)
+  deliveryCharge          Decimal       @default(0.00) @db.Decimal(10, 2)
+  totalWeightGrams        Int           @default(0)
+  packagingWeightGrams    Int           @default(100)
   totalAmount             Decimal       @db.Decimal(10, 2)
   shippingAddressSnapshot Json          @db.JsonB
   notes                   String?       @db.Text
   trackingNumber          String?       @db.VarChar(100)
   courierPartner          String?       @db.VarChar(100)
+  expiresAt               DateTime?     @db.Timestamptz(6)
   createdAt               DateTime      @default(now()) @db.Timestamptz(6)
   updatedAt               DateTime      @updatedAt @db.Timestamptz(6)
 
@@ -365,6 +377,7 @@ model Order {
   @@index([orderAccessToken])
   @@index([customerId])
   @@index([status])
+  @@index([paymentStatus])
   @@index([createdAt])
   @@map("orders")
 }
@@ -377,6 +390,7 @@ model OrderItem {
   variantTitle   String  @db.VarChar(150)
   sku            String  @db.VarChar(100)
   unitPrice      Decimal @db.Decimal(10, 2)
+  weightGrams    Int     @default(40)
   quantity       Int
   discountAmount Decimal @default(0.00) @db.Decimal(10, 2)
   taxAmount      Decimal @default(0.00) @db.Decimal(10, 2)

@@ -14,6 +14,11 @@ interface CartContextType {
   subtotal: number;
   shippingFee: number;
   total: number;
+  minOrderMerchandiseSubtotal: number;
+  isMinOrderMet: boolean;
+  amountNeededForMinOrder: number;
+  minOrderProgress: number;
+  // Backward compatibility aliases
   freeShippingThreshold: number;
   freeShippingProgress: number;
   amountNeededForFreeShipping: number;
@@ -150,13 +155,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = items.reduce((sum, item) => sum + item.lineTotal, 0);
 
-  const threshold = BRAND_CONFIG.freeShippingThreshold;
-  const isFreeShippingEligible = subtotal >= threshold && subtotal > 0;
-  const amountNeededForFreeShipping = Math.max(0, threshold - subtotal);
-  const freeShippingProgress = Math.min(100, Math.round((subtotal / threshold) * 100));
+  const minRequired = BRAND_CONFIG.minOrderMerchandiseSubtotal;
+  const isMinOrderMet = subtotal >= minRequired;
+  const amountNeededForMinOrder = Math.max(0, minRequired - subtotal);
+  const minOrderProgress = Math.min(100, Math.round((subtotal / minRequired) * 100));
 
-  const shippingFee = isFreeShippingEligible || subtotal === 0 ? 0 : BRAND_CONFIG.standardShippingFee;
-  const total = subtotal + shippingFee;
+  // Delivery charges are calculated dynamically at checkout based on ₹60/kg rate
+  const shippingFee = 0;
+  const total = subtotal;
 
   return (
     <CartContext.Provider
@@ -170,10 +176,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         subtotal,
         shippingFee,
         total,
-        freeShippingThreshold: threshold,
-        freeShippingProgress,
-        amountNeededForFreeShipping,
-        isFreeShippingEligible,
+        minOrderMerchandiseSubtotal: minRequired,
+        isMinOrderMet,
+        amountNeededForMinOrder,
+        minOrderProgress,
+        freeShippingThreshold: minRequired,
+        freeShippingProgress: minOrderProgress,
+        amountNeededForFreeShipping: amountNeededForMinOrder,
+        isFreeShippingEligible: isMinOrderMet,
         isCartOpen,
         openCart: () => setIsCartOpen(true),
         closeCart: () => setIsCartOpen(false),

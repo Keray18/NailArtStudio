@@ -11,6 +11,9 @@ import { categoriesRouter } from "./modules/catalogue/categories/categories.rout
 import { collectionsRouter } from "./modules/catalogue/collections/collections.routes";
 import { productsRouter } from "./modules/catalogue/products/products.routes";
 import { searchRouter } from "./modules/catalogue/search/search.routes";
+import { deliveryRouter } from "./modules/delivery/delivery.routes";
+import { ordersRouter } from "./modules/orders/orders.routes";
+import { ownerRouter } from "./modules/owner/owner.routes";
 import { logger } from "./utils/logger";
 
 export function createApp(): Application {
@@ -77,6 +80,9 @@ export function createApp(): Application {
   apiV1Router.use("/collections", collectionsRouter);
   apiV1Router.use("/products", productsRouter);
   apiV1Router.use("/search", searchRouter);
+  apiV1Router.use("/delivery", deliveryRouter);
+  apiV1Router.use("/orders", ordersRouter);
+  apiV1Router.use("/owner", ownerRouter);
 
   app.use("/api/v1", apiV1Router);
 

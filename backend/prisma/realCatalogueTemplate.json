@@ -1,0 +1,86 @@
+[
+  {
+    "sku": "TNL-PRS-001",
+    "name": "Maharani Velvet Crimson Press-On Set",
+    "slug": "maharani-velvet-crimson-press-on-set",
+    "shortDescription": "Handcrafted deep crimson cat-eye velvet press-on tips with gold foil accents.",
+    "description": "Inspired by royal bridal luxury, this set features multi-dimensional magnetic crimson gel overlaid on durable Korean ABS tips. Includes universal 24-piece sizing, prep wipes, wooden cuticle pusher, and salon glue tabs.",
+    "categorySlug": "press-on-nails",
+    "basePrice": 1299,
+    "compareAtPrice": 1699,
+    "weightGrams": 45,
+    "variants": [
+      {
+        "sku": "TNL-PRS-001-UNI24",
+        "title": "Universal 24-Piece Set (All Nail Sizes)",
+        "price": 1299,
+        "compareAtPrice": 1699,
+        "weightGrams": 45,
+        "initialStock": 15
+      }
+    ],
+    "images": [
+      {
+        "url": "https://images.unsplash.com/photo-1604654894610-df63bc536371?auto=format&fit=crop&w=1200&q=80",
+        "altText": "Maharani Velvet Crimson Press-On Set",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "sku": "TNL-PRS-002",
+    "name": "Abohar Rose Glaze Chrome Press-On Set",
+    "slug": "abohar-rose-glaze-chrome-press-on-set",
+    "shortDescription": "Mirror-finish glazed donut pearl chrome over delicate dusty rose base.",
+    "description": "Studio handcrafted in Abohar, Punjab. High-gloss chrome powder sealed with dual coats of chip-resistant non-wipe topcoat for 3+ weeks of wear.",
+    "categorySlug": "press-on-nails",
+    "basePrice": 1199,
+    "compareAtPrice": 1499,
+    "weightGrams": 45,
+    "variants": [
+      {
+        "sku": "TNL-PRS-002-UNI24",
+        "title": "Universal 24-Piece Set (Almond Shape)",
+        "price": 1199,
+        "compareAtPrice": 1499,
+        "weightGrams": 45,
+        "initialStock": 20
+      }
+    ],
+    "images": [
+      {
+        "url": "https://images.unsplash.com/photo-1632345031435-8727f6897d53?auto=format&fit=crop&w=1200&q=80",
+        "altText": "Abohar Rose Glaze Chrome Press-On Set",
+        "isPrimary": true
+      }
+    ]
+  },
+  {
+    "sku": "TNL-KIT-001",
+    "name": "Studio Prep & Long-Wear Application Kit",
+    "slug": "studio-prep-long-wear-application-kit",
+    "shortDescription": "Medical-grade prep kit for maximum press-on adhesion without damage.",
+    "description": "Contains 120 waterproof adhesive tabs, dual-grit nail buffer, stainless steel cuticle pusher, 6 isopropyl alcohol prep wipes, and professional brush-on resin glue (10g).",
+    "categorySlug": "application-kits",
+    "basePrice": 399,
+    "compareAtPrice": 599,
+    "weightGrams": 110,
+    "variants": [
+      {
+        "sku": "TNL-KIT-001-STD",
+        "title": "Standard Application & Care Bundle",
+        "price": 399,
+        "compareAtPrice": 599,
+        "weightGrams": 110,
+        "initialStock": 50
+      }
+    ],
+    "images": [
+      {
+        "url": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=1200&q=80",
+        "altText": "Studio Prep & Long-Wear Application Kit",
+        "isPrimary": true
+      }
+    ]
+  }
+]

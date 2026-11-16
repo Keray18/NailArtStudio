@@ -5,23 +5,13 @@ import Link from "next/link";
 import { Drawer } from "@/components/ui/Drawer";
 import { useCart } from "@/hooks/useCart";
 import { CartItemRow } from "./CartItemRow";
-import { FreeShippingMeter } from "./FreeShippingMeter";
+import { MinimumOrderMeter } from "./MinimumOrderMeter";
 import { Button } from "@/components/ui/Button";
-import { ShoppingBag, ArrowRight, ShieldCheck, Sparkles, Plus } from "lucide-react";
-import { FIXTURE_PRODUCTS } from "@/data/fixtures";
+import { ShoppingBag, ArrowRight, ShieldCheck, AlertCircle } from "lucide-react";
+import { BRAND_CONFIG } from "@/config/brand";
 
 export const CartDrawer: React.FC = () => {
-  const { items, isCartOpen, closeCart, subtotal, itemCount, addItem } = useCart();
-
-  // Curated in-cart impulse items (Glue tabs and alcohol wipes)
-  const impulseTabs = FIXTURE_PRODUCTS.find((p) => p.sku === "FIX-KIT-002");
-  const impulseWipes = FIXTURE_PRODUCTS.find((p) => p.sku === "FIX-KIT-003");
-
-  const handleAddImpulse = (product: typeof impulseTabs) => {
-    if (product && product.variants[0]) {
-      addItem(product, product.variants[0], 1);
-    }
-  };
+  const { items, isCartOpen, closeCart, subtotal, itemCount, isMinOrderMet, amountNeededForMinOrder } = useCart();
 
   return (
     <Drawer
@@ -31,9 +21,9 @@ export const CartDrawer: React.FC = () => {
       position="right"
     >
       <div className="flex flex-col h-full justify-between -mt-1">
-        {/* Top Free Shipping Progress */}
+        {/* Top Minimum Order Progress */}
         <div className="pb-4">
-          <FreeShippingMeter subtotal={subtotal} />
+          <MinimumOrderMeter subtotal={subtotal} />
         </div>
 
         {/* Middle: Items List or Empty State */}
@@ -62,47 +52,6 @@ export const CartDrawer: React.FC = () => {
                   <CartItemRow key={item.id} item={item} />
                 ))}
               </div>
-
-              {/* In-Cart 1-Click Complementary Add-ons */}
-              <div className="mt-6 pt-4 border-t border-blush/60 bg-ivory-subtle/40 -mx-5 px-5 py-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-espresso/70 mb-2.5 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-champagne" />
-                  <span>Essential Application Add-ons</span>
-                </p>
-                <div className="space-y-2">
-                  {impulseTabs && (
-                    <div className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-blush/50 text-xs">
-                      <div>
-                        <p className="font-medium text-espresso">{impulseTabs.name}</p>
-                        <p className="text-espresso-muted font-bold">₹{impulseTabs.basePrice}</p>
-                      </div>
-                      <button
-                        onClick={() => handleAddImpulse(impulseTabs)}
-                        className="px-2.5 py-1.5 bg-blush/40 hover:bg-rose hover:text-white rounded text-xs font-semibold text-espresso transition-colors flex items-center gap-1"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Add</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {impulseWipes && (
-                    <div className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-blush/50 text-xs">
-                      <div>
-                        <p className="font-medium text-espresso">{impulseWipes.name}</p>
-                        <p className="text-espresso-muted font-bold">₹{impulseWipes.basePrice}</p>
-                      </div>
-                      <button
-                        onClick={() => handleAddImpulse(impulseWipes)}
-                        className="px-2.5 py-1.5 bg-blush/40 hover:bg-rose hover:text-white rounded text-xs font-semibold text-espresso transition-colors flex items-center gap-1"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Add</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
           )}
         </div>
@@ -111,25 +60,37 @@ export const CartDrawer: React.FC = () => {
         {items.length > 0 && (
           <div className="pt-4 border-t border-blush/80 bg-ivory mt-4 space-y-3">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-espresso/70 font-medium">Subtotal</span>
+              <span className="text-espresso/70 font-medium">Merchandise Subtotal</span>
               <span className="font-serif text-lg font-bold text-espresso">
                 ₹{subtotal}
               </span>
             </div>
             <p className="text-[11px] text-espresso/50">
-              Delivery fee calculated at checkout &bull; Inclusive of all taxes
+              Delivery charges calculated at checkout (₹{BRAND_CONFIG.deliveryRatePerKg}/kg) &bull; Inclusive of all taxes
             </p>
 
-            <Link href="/checkout" onClick={closeCart} className="block">
-              <Button variant="primary" fullWidth size="lg" className="gap-2">
-                <span>Proceed to Guest Checkout</span>
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-            </Link>
+            {isMinOrderMet ? (
+              <Link href="/checkout" onClick={closeCart} className="block">
+                <Button variant="primary" fullWidth size="lg" className="gap-2">
+                  <span>Proceed to Guest Checkout</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </Link>
+            ) : (
+              <div>
+                <Button variant="primary" fullWidth size="lg" disabled className="gap-2 opacity-60 cursor-not-allowed">
+                  <span>Add ₹{amountNeededForMinOrder} More to Checkout</span>
+                </Button>
+                <p className="mt-1.5 text-center text-[11px] text-amber-800 flex items-center justify-center gap-1 font-medium">
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                  <span>Minimum merchandise order is ₹{BRAND_CONFIG.minOrderMerchandiseSubtotal}</span>
+                </p>
+              </div>
+            )}
 
             <div className="flex items-center justify-center gap-1.5 text-[11px] text-espresso/60 pt-1">
               <ShieldCheck className="w-3.5 h-3.5 text-status-success" />
-              <span>Simulated Prototype Checkout &bull; No Real Charge</span>
+              <span>Secure Guest Checkout &bull; Direct Studio Dispatch</span>
             </div>
           </div>
         )}
@@ -137,4 +98,3 @@ export const CartDrawer: React.FC = () => {
     </Drawer>
   );
 };
-

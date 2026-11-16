@@ -133,13 +133,17 @@ describe("Storefront User Journeys & End-to-End API Integration", () => {
     });
   });
 
-  describe("Journey 6: Safety Gates — Non-Transactional Status", () => {
-    it("should ensure non-existent mutation endpoints return 404 (zero unauthorized checkout mutations)", async () => {
-      const postOrderRes = await request(app).post("/api/v1/orders").send({ total: 1000 });
-      expect(postOrderRes.status).toBe(404);
-
+  describe("Journey 6: Safety Gates & Non-Existent Mutation Endpoints", () => {
+    it("should ensure deprecated/unauthorized checkout mutation endpoints return 404", async () => {
       const postCheckoutRes = await request(app).post("/api/v1/checkout").send({});
       expect(postCheckoutRes.status).toBe(404);
+    });
+
+    it("should reject invalid order creation payloads with 400 validation error", async () => {
+      const postOrderRes = await request(app).post("/api/v1/orders").send({ total: 1000 });
+      expect(postOrderRes.status).toBe(400);
+      expect(postOrderRes.body.success).toBe(false);
+      expect(postOrderRes.body.error.code).toBe("VALIDATION_FAILED");
     });
   });
 });

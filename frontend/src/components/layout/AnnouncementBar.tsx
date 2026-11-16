@@ -9,13 +9,13 @@ export const AnnouncementBar: React.FC = () => {
         <div className="flex items-center gap-1.5 mx-auto sm:mx-0">
           <Truck className="w-3.5 h-3.5 text-champagne" />
           <span>
-            Complimentary shipping on orders above ₹{BRAND_CONFIG.freeShippingThreshold} (Illustrative)
+            Studio Handcrafted in Abohar • Minimum Merchandise Order ₹{BRAND_CONFIG.minOrderMerchandiseSubtotal} • Delivery charges ₹{BRAND_CONFIG.deliveryRatePerKg}/kg
           </span>
         </div>
         <div className="hidden sm:flex items-center gap-3 text-ivory/80">
           <span className="flex items-center gap-1">
             <Sparkles className="w-3 h-3 text-champagne" />
-            Designed & Dispatched from {BRAND_CONFIG.location}
+            Dispatched from {BRAND_CONFIG.location}
           </span>
         </div>
       </div>

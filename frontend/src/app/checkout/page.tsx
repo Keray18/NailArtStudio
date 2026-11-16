@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/hooks/useCart";
-import { catalogueService } from "@/services/catalogueService";
+import { deliveryService, DeliveryQuoteResponse } from "@/services/deliveryService";
+import { orderService } from "@/services/orderService";
+import { BRAND_CONFIG } from "@/config/brand";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { ShieldCheck, Truck, Lock, ArrowLeft, Info, CheckCircle2 } from "lucide-react";
-import { PrototypeNoticeBanner } from "@/components/layout/PrototypeNoticeBanner";
+import { ShieldCheck, Lock, ArrowLeft, Info, AlertCircle, QrCode, PhoneCall } from "lucide-react";
 
 interface FormData {
   fullName: string;
@@ -21,8 +22,8 @@ interface FormData {
   pincode: string;
   city: string;
   state: string;
-  shippingSpeed: "STANDARD" | "EXPRESS";
-  paymentMethod: "COD" | "ONLINE_MOCK";
+  paymentMethod: "UPI_MANUAL" | "COD";
+  customerNotes: string;
 }
 
 interface FormErrors {
@@ -31,7 +32,7 @@ interface FormErrors {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, subtotal, shippingFee, total, clearCart } = useCart();
+  const { items, subtotal, isMinOrderMet, amountNeededForMinOrder, clearCart } = useCart();
 
   const [formData, setFormData] = useState<FormData>({
     fullName: "",
@@ -43,37 +44,42 @@ export default function CheckoutPage() {
     pincode: "",
     city: "",
     state: "",
-    shippingSpeed: "STANDARD",
-    paymentMethod: "COD",
+    paymentMethod: "UPI_MANUAL",
+    customerNotes: "",
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [pincodeLoading, setPincodeLoading] = useState(false);
+  const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuoteResponse | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
 
-  // Auto-fill city & state when 6-digit pincode is entered
-  const handlePincodeChange = async (pinValue: string) => {
+  // Fetch delivery quote when pincode or items change
+  useEffect(() => {
+    const cleanPin = formData.pincode.trim();
+    if (cleanPin.length === 6 && /^\d{6}$/.test(cleanPin) && items.length > 0) {
+      setQuoteLoading(true);
+      deliveryService
+        .getQuote({
+          items: items.map((i) => ({ variantId: i.variant.id, quantity: i.quantity })),
+          destinationPincode: cleanPin,
+        })
+        .then((quote) => {
+          setDeliveryQuote(quote);
+          setErrors((prev) => ({ ...prev, pincode: "" }));
+        })
+        .catch(() => {
+          // If quote fails, fallback to standard calculation
+        })
+        .finally(() => {
+          setQuoteLoading(false);
+        });
+    }
+  }, [formData.pincode, items]);
+
+  const handlePincodeChange = (pinValue: string) => {
     const cleanPin = pinValue.replace(/\D/g, "").slice(0, 6);
     setFormData((prev) => ({ ...prev, pincode: cleanPin }));
-
-    if (cleanPin.length === 6) {
-      setPincodeLoading(true);
-      try {
-        const lookup = await catalogueService.validatePincode(cleanPin);
-        if (lookup.isServiceable) {
-          setFormData((prev) => ({
-            ...prev,
-            city: prev.city || lookup.city,
-            state: prev.state || lookup.state,
-          }));
-          setErrors((prev) => ({ ...prev, pincode: "" }));
-        }
-      } catch {
-        // Keep editable
-      } finally {
-        setPincodeLoading(false);
-      }
-    }
   };
 
   const validate = (): boolean => {
@@ -81,22 +87,26 @@ export default function CheckoutPage() {
 
     if (!formData.fullName.trim()) newErrors.fullName = "Full name is required";
     if (!formData.phone.trim() || formData.phone.length < 10)
-      newErrors.phone = "Enter a valid 10-digit mobile number";
+      newErrors.phone = "Enter a valid 10-digit Indian mobile number";
     if (!formData.email.trim() || !formData.email.includes("@"))
-      newErrors.email = "Valid email address is required for your invoice";
+      newErrors.email = "Valid email address is required for receipt & tracking";
     if (!formData.addressLine1.trim())
-      newErrors.addressLine1 = "House number and street are required";
+      newErrors.addressLine1 = "Address line 1 (house / building / street) is required";
     if (!formData.pincode.trim() || formData.pincode.length !== 6)
       newErrors.pincode = "Enter a valid 6-digit postal pincode";
-    if (!formData.city.trim()) newErrors.city = "City is required";
-    if (!formData.state.trim()) newErrors.state = "State is required";
+    if (!formData.city.trim()) newErrors.city = "City / District is required";
+    if (!formData.state.trim()) newErrors.state = "State / Union Territory is required";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const deliveryCharge = deliveryQuote ? deliveryQuote.deliveryCharge : 60;
+  const grandTotal = subtotal + deliveryCharge;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setServerError(null);
 
     if (!validate()) {
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -104,53 +114,52 @@ export default function CheckoutPage() {
     }
 
     if (items.length === 0) {
-      alert("Your cart is empty.");
+      setServerError("Your cart is empty. Please add products to proceed.");
+      return;
+    }
+
+    if (!isMinOrderMet) {
+      setServerError(
+        `Minimum merchandise order subtotal is ₹${BRAND_CONFIG.minOrderMerchandiseSubtotal}. Please add ₹${amountNeededForMinOrder} more in items.`
+      );
       return;
     }
 
     setIsSubmitting(true);
 
-    // Simulate order placement
-    setTimeout(() => {
-      const orderNumber = `TNL-DEV-${Math.floor(10000 + Math.random() * 90000)}`;
-      const orderAccessToken = `sec_${Math.random().toString(36).substring(2, 15)}`;
+    try {
+      const idempotencyKey = `idemp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
-      // Save order snapshot in session storage for the confirmation page
-      const orderReceipt = {
-        orderNumber,
-        orderAccessToken,
-        createdAt: new Date().toISOString(),
-        items: [...items],
-        shippingAddress: {
-          fullName: formData.fullName,
-          phone: formData.phone,
-          email: formData.email,
-          addressLine1: formData.addressLine1,
-          addressLine2: formData.addressLine2,
-          landmark: formData.landmark,
-          city: formData.city,
-          state: formData.state,
-          postalCode: formData.pincode,
-          country: "India",
+      const order = await orderService.createGuestOrder({
+        customer: {
+          fullName: formData.fullName.trim(),
+          phone: formData.phone.trim(),
+          email: formData.email.trim(),
         },
-        subtotal,
-        shippingFee: formData.shippingSpeed === "EXPRESS" ? shippingFee + 99 : shippingFee,
-        total: formData.shippingSpeed === "EXPRESS" ? total + 99 : total,
+        shippingAddress: {
+          addressLine1: formData.addressLine1.trim(),
+          addressLine2: formData.landmark.trim() ? `Near ${formData.landmark.trim()}` : undefined,
+          city: formData.city.trim(),
+          state: formData.state.trim(),
+          postalCode: formData.pincode.trim(),
+        },
         paymentMethod: formData.paymentMethod,
-        estimatedDeliveryWindow: "3–5 business days (Abohar Studio Dispatch)",
-        isSimulatedPrototype: true,
-      };
-
-      try {
-        sessionStorage.setItem(`tnl_order_${orderNumber}`, JSON.stringify(orderReceipt));
-      } catch {
-        // quota
-      }
+        items: items.map((i) => ({
+          variantId: i.variant.id,
+          quantity: i.quantity,
+        })),
+        customerNotes: formData.customerNotes.trim() || undefined,
+        idempotencyKey,
+      });
 
       clearCart();
+      router.push(`/order-confirmation/${order.orderNumber}?token=${order.orderAccessToken}`);
+    } catch (err: any) {
+      setServerError(err.message || "Failed to place order. Please verify your details and try again.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } finally {
       setIsSubmitting(false);
-      router.push(`/order-confirmation/${orderNumber}?token=${orderAccessToken}`);
-    }, 800);
+    }
   };
 
   if (items.length === 0) {
@@ -160,7 +169,7 @@ export default function CheckoutPage() {
           Your Shopping Bag is Empty
         </h1>
         <p className="text-sm text-espresso/70 mb-6">
-          Add styles to your shopping bag before proceeding to checkout.
+          Add handcrafted styles to your shopping bag before proceeding to checkout.
         </p>
         <Link href="/shop">
           <Button variant="primary">Browse Catalogue</Button>
@@ -169,13 +178,33 @@ export default function CheckoutPage() {
     );
   }
 
-  const expressFee = formData.shippingSpeed === "EXPRESS" ? 99 : 0;
-  const grandTotal = total + expressFee;
+  if (!isMinOrderMet) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-16 text-center space-y-4">
+        <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
+          <AlertCircle className="w-6 h-6" />
+        </div>
+        <h1 className="font-serif text-2xl font-semibold text-espresso">
+          Minimum Order Not Met
+        </h1>
+        <p className="text-sm text-espresso/70">
+          The Nail Lounge requires a minimum merchandise subtotal of <strong>₹{BRAND_CONFIG.minOrderMerchandiseSubtotal}</strong>.
+          Your current subtotal is <strong>₹{subtotal}</strong>.
+        </p>
+        <p className="text-xs text-espresso/60">
+          Delivery charges (₹{BRAND_CONFIG.deliveryRatePerKg}/kg) are calculated separately and do not count toward this merchandise minimum.
+        </p>
+        <div className="pt-2">
+          <Link href="/shop">
+            <Button variant="primary">Add ₹{amountNeededForMinOrder} More to Continue</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-      <PrototypeNoticeBanner className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-6 mb-6" />
-
       {/* Header Bar */}
       <div className="flex items-center justify-between pb-4 border-b border-blush/60">
         <Link
@@ -188,12 +217,22 @@ export default function CheckoutPage() {
 
         <div className="flex items-center gap-1.5 text-xs font-semibold text-espresso">
           <Lock className="w-3.5 h-3.5 text-rose" />
-          <span>Guest Checkout</span>
+          <span>Secure Guest Checkout</span>
         </div>
       </div>
 
+      {serverError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-xs text-red-900 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold text-red-950 text-sm">Order Placement Notice</p>
+            <p className="mt-0.5 leading-relaxed">{serverError}</p>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Column: Checkout Accordion Steps (7 Cols) */}
+        {/* Left Column: Form (7 Cols) */}
         <div className="lg:col-span-7 space-y-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Step 1: Contact Information */}
@@ -203,7 +242,7 @@ export default function CheckoutPage() {
                   1
                 </span>
                 <h2 className="font-serif text-lg font-semibold text-espresso">
-                  Contact Details (Guest)
+                  Contact Information (Guest)
                 </h2>
               </div>
 
@@ -219,7 +258,7 @@ export default function CheckoutPage() {
                 />
 
                 <Input
-                  label="Mobile / WhatsApp Number *"
+                  label="Mobile Number (WhatsApp) *"
                   type="tel"
                   placeholder="10-digit mobile number"
                   value={formData.phone}
@@ -230,12 +269,12 @@ export default function CheckoutPage() {
                       phone: e.target.value.replace(/\D/g, "").slice(0, 10),
                     }))
                   }
-                  helperText="For delivery dispatch and courier updates"
+                  helperText="Used for order confirmation & courier dispatch updates"
                 />
 
                 <div className="sm:col-span-2">
                   <Input
-                    label="Email Address (for Receipt) *"
+                    label="Email Address *"
                     type="email"
                     placeholder="name@example.com"
                     value={formData.email}
@@ -243,6 +282,7 @@ export default function CheckoutPage() {
                     onChange={(e) =>
                       setFormData((prev) => ({ ...prev, email: e.target.value }))
                     }
+                    helperText="Receipt and tracking details will be sent here"
                   />
                 </div>
               </div>
@@ -274,7 +314,7 @@ export default function CheckoutPage() {
 
                 <div className="sm:col-span-2">
                   <Input
-                    label="Locality / Area / Landmark (Optional)"
+                    label="Landmark / Area (Optional)"
                     placeholder="e.g. Near Gurudwara Sahib"
                     value={formData.landmark}
                     onChange={(e) =>
@@ -291,16 +331,18 @@ export default function CheckoutPage() {
                     error={errors.pincode}
                     onChange={(e) => handlePincodeChange(e.target.value)}
                     helperText={
-                      pincodeLoading
-                        ? "Looking up city/state..."
-                        : "Auto-suggests city and state"
+                      quoteLoading
+                        ? "Calculating courier rate..."
+                        : deliveryQuote
+                        ? `Delivery: ₹${deliveryQuote.deliveryCharge} (${deliveryQuote.estimatedTransitDays})`
+                        : "Rate calculated at ₹60/kg"
                     }
                   />
                 </div>
 
                 <div>
                   <Input
-                    label="City *"
+                    label="City / Town *"
                     placeholder="e.g. Abohar"
                     value={formData.city}
                     error={errors.city}
@@ -321,112 +363,90 @@ export default function CheckoutPage() {
                     }
                   />
                 </div>
+
+                <div className="sm:col-span-2">
+                  <Input
+                    label="Order Notes / Delivery Instructions (Optional)"
+                    placeholder="e.g. Call before delivery, custom nail sizing preferences..."
+                    value={formData.customerNotes}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, customerNotes: e.target.value }))
+                    }
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Step 3: Shipping & Payment Method (Simulated) */}
+            {/* Step 3: Verified Payment Methods */}
             <div className="bg-white p-6 rounded-xl border border-blush shadow-card space-y-4">
               <div className="flex items-center gap-2 border-b border-blush/40 pb-3">
                 <span className="w-6 h-6 rounded-full bg-rose text-white text-xs font-bold flex items-center justify-center">
                   3
                 </span>
                 <h2 className="font-serif text-lg font-semibold text-espresso">
-                  Shipping Speed &amp; Payment (Prototype)
+                  Payment Method
                 </h2>
               </div>
 
-              {/* Delivery Speed Radios */}
-              <div className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-espresso block">
-                  Select Delivery Option
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData((prev) => ({ ...prev, shippingSpeed: "STANDARD" }))
-                    }
-                    className={`p-3 rounded-lg border text-left transition-all focus-ring ${
-                      formData.shippingSpeed === "STANDARD"
-                        ? "border-rose bg-rose/5 ring-1 ring-rose"
-                        : "border-blush bg-white"
-                    }`}
-                  >
-                    <div className="flex justify-between items-center text-xs font-bold text-espresso">
-                      <span>Standard Surface</span>
-                      <span>{shippingFee === 0 ? "FREE" : `₹${shippingFee}`}</span>
+              <div className="space-y-3">
+                {/* UPI Option */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFormData((prev) => ({ ...prev, paymentMethod: "UPI_MANUAL" }))
+                  }
+                  className={`w-full p-4 rounded-xl border text-left transition-all ${
+                    formData.paymentMethod === "UPI_MANUAL"
+                      ? "border-rose bg-rose/5 ring-1 ring-rose"
+                      : "border-blush bg-white hover:border-blush-dark"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-rose/10 text-rose flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <QrCode className="w-4 h-4" />
                     </div>
-                    <span className="text-[11px] text-espresso/60 block mt-1">
-                      3–5 business days across India
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData((prev) => ({ ...prev, shippingSpeed: "EXPRESS" }))
-                    }
-                    className={`p-3 rounded-lg border text-left transition-all focus-ring ${
-                      formData.shippingSpeed === "EXPRESS"
-                        ? "border-rose bg-rose/5 ring-1 ring-rose"
-                        : "border-blush bg-white"
-                    }`}
-                  >
-                    <div className="flex justify-between items-center text-xs font-bold text-espresso">
-                      <span>Express Air Courier</span>
-                      <span>+₹99</span>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-espresso">
+                          Manual UPI / QR Code Payment (Recommended)
+                        </span>
+                        <span className="text-[10px] uppercase font-bold text-rose tracking-wider bg-rose/10 px-2 py-0.5 rounded">
+                          Priority Dispatch
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-espresso/70 mt-1 leading-relaxed">
+                        Pay via Google Pay, PhonePe, Paytm, or BHIM. You will scan the studio QR code and enter your 12-digit transaction UTR on the next screen for studio verification.
+                      </p>
                     </div>
-                    <span className="text-[11px] text-espresso/60 block mt-1">
-                      1–2 business days priority dispatch
-                    </span>
-                  </button>
-                </div>
-              </div>
+                  </div>
+                </button>
 
-              {/* Payment Method Radios (Simulated) */}
-              <div className="space-y-2 pt-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-espresso block">
-                  Payment Method (Simulated Prototype)
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData((prev) => ({ ...prev, paymentMethod: "COD" }))
-                    }
-                    className={`p-3 rounded-lg border text-left transition-all focus-ring ${
-                      formData.paymentMethod === "COD"
-                        ? "border-rose bg-rose/5 ring-1 ring-rose"
-                        : "border-blush bg-white"
-                    }`}
-                  >
-                    <span className="text-xs font-bold text-espresso block">
-                      Cash on Delivery (Simulated)
-                    </span>
-                    <span className="text-[11px] text-espresso/60 block mt-1">
-                      Pay upon delivery with cash/UPI
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData((prev) => ({ ...prev, paymentMethod: "ONLINE_MOCK" }))
-                    }
-                    className={`p-3 rounded-lg border text-left transition-all focus-ring ${
-                      formData.paymentMethod === "ONLINE_MOCK"
-                        ? "border-rose bg-rose/5 ring-1 ring-rose"
-                        : "border-blush bg-white"
-                    }`}
-                  >
-                    <span className="text-xs font-bold text-espresso block">
-                      Simulated UPI / Netbanking
-                    </span>
-                    <span className="text-[11px] text-espresso/60 block mt-1">
-                      Instant simulated confirmation
-                    </span>
-                  </button>
-                </div>
+                {/* COD Option */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFormData((prev) => ({ ...prev, paymentMethod: "COD" }))
+                  }
+                  className={`w-full p-4 rounded-xl border text-left transition-all ${
+                    formData.paymentMethod === "COD"
+                      ? "border-rose bg-rose/5 ring-1 ring-rose"
+                      : "border-blush bg-white hover:border-blush-dark"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-espresso/10 text-espresso flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <PhoneCall className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1">
+                      <span className="text-xs font-bold text-espresso block">
+                        Cash on Delivery (Phone Verification Required)
+                      </span>
+                      <p className="text-[11px] text-espresso/70 mt-1 leading-relaxed">
+                        Our Abohar studio will call your phone to verify the shipping address prior to courier dispatch. Pay cash upon doorstep arrival.
+                      </p>
+                    </div>
+                  </div>
+                </button>
               </div>
 
               <div className="pt-4">
@@ -437,17 +457,17 @@ export default function CheckoutPage() {
                   fullWidth
                   isLoading={isSubmitting}
                 >
-                  Confirm Simulated Order &bull; ₹{grandTotal}
+                  Place Order &bull; ₹{grandTotal}
                 </Button>
                 <p className="text-center text-[11px] text-espresso/50 mt-2">
-                  By clicking, you confirm this is a development prototype test run.
+                  Direct studio fulfillment &bull; Abohar, Punjab &bull; Handcrafted with care
                 </p>
               </div>
             </div>
           </form>
         </div>
 
-        {/* Right Column: Order Review Summary (5 Cols) */}
+        {/* Right Column: Order Summary (5 Cols) */}
         <div className="lg:col-span-5 bg-white p-6 rounded-xl border border-blush shadow-card space-y-4 sticky top-28">
           <h2 className="font-serif text-lg font-semibold text-espresso border-b border-blush/60 pb-3 flex items-center justify-between">
             <span>Order Summary</span>
@@ -484,21 +504,22 @@ export default function CheckoutPage() {
           {/* Pricing Totals */}
           <div className="space-y-2 text-xs text-espresso/80 border-t border-blush/60 pt-3">
             <div className="flex justify-between">
-              <span>Items Subtotal</span>
+              <span>Merchandise Subtotal</span>
               <span className="font-semibold text-espresso">₹{subtotal}</span>
             </div>
-            <div className="flex justify-between">
-              <span>Delivery Charges</span>
-              <span>
-                {shippingFee === 0 && expressFee === 0 ? (
-                  <span className="text-status-success font-semibold">FREE</span>
-                ) : (
-                  `₹${shippingFee + expressFee}`
+            <div className="flex justify-between items-center">
+              <div>
+                <span>Delivery charges</span>
+                {deliveryQuote && (
+                  <span className="block text-[10px] text-espresso/50">
+                    Parcel Weight: {deliveryQuote.totalParcelWeightGrams}g (inc. {deliveryQuote.packagingWeightGrams}g box)
+                  </span>
                 )}
-              </span>
+              </div>
+              <span className="font-semibold text-espresso">₹{deliveryCharge}</span>
             </div>
             <div className="flex justify-between text-base font-bold text-espresso border-t border-blush/60 pt-3">
-              <span>Total Payable</span>
+              <span>Total Amount</span>
               <span className="font-serif text-xl">₹{grandTotal}</span>
             </div>
           </div>
@@ -506,10 +527,10 @@ export default function CheckoutPage() {
           <div className="p-3 bg-ivory-subtle/60 rounded-lg text-xs text-espresso/70 space-y-1">
             <div className="flex items-center gap-1.5 font-semibold text-espresso">
               <ShieldCheck className="w-4 h-4 text-status-success" />
-              <span>Abohar Studio Guarantee</span>
+              <span>Direct Studio Guarantee</span>
             </div>
-            <p className="text-[11px]">
-              Every parcel is carefully inspected, packed with protective foam, and tracked until doorstep delivery.
+            <p className="text-[11px] leading-tight">
+              Handcrafted in Abohar, Punjab. Secure multi-layer bubble packaging to ensure pristine transit.
             </p>
           </div>
         </div>

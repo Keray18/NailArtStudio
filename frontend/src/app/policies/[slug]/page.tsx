@@ -35,10 +35,13 @@ const POLICIES: Record<
         </ul>
 
         <h3 className="font-serif text-lg font-semibold text-espresso pt-2">
-          3. Shipping Fees &amp; Free Shipping
+          3. Delivery Charges &amp; Minimum Order Policy
         </h3>
         <p>
-          We offer complimentary standard shipping on all prepaid orders exceeding <strong>₹{BRAND_CONFIG.freeShippingThreshold}</strong>. Orders below this threshold incur an illustrative delivery charge of ₹{BRAND_CONFIG.standardShippingFee} to cover protective bubble packaging and courier conveyance.
+          The Nail Lounge requires a minimum merchandise subtotal of <strong>₹{BRAND_CONFIG.minOrderMerchandiseSubtotal}</strong> per order (excluding delivery charges).
+        </p>
+        <p>
+          Delivery charges are calculated transparently based on our courier partner rate of <strong>₹{BRAND_CONFIG.deliveryRatePerKg} per kg</strong> (or fraction thereof). Each parcel includes item weights plus a {BRAND_CONFIG.packagingWeightGrams}g allowance for protective bubble packaging and rigid boxes. Delivery charges are calculated at checkout and do not count toward the ₹{BRAND_CONFIG.minOrderMerchandiseSubtotal} merchandise minimum.
         </p>
       </div>
     ),

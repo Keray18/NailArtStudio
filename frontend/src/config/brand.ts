@@ -5,10 +5,11 @@ export const BRAND_CONFIG = {
   location: "Abohar, Punjab, India",
   supportEmail: "support@thenaillounge.in",
   whatsappNumber: "+91 98765 43210",
-  freeShippingThreshold: 999, // Illustrative prototype value (₹999)
+  minOrderMerchandiseSubtotal: 999, // Mandatory minimum merchandise subtotal (₹999)
+  deliveryRatePerKg: 60, // Courier partner rate: ₹60 per kg (or fraction thereof)
+  packagingWeightGrams: 100, // Allowance for protective parcel box & bubble wrapping
   currencySymbol: "₹",
   currencyCode: "INR",
-  standardShippingFee: 99,
   socialHandles: {
     instagram: "@thenaillounge.in",
     whatsapp: "https://wa.me/919876543210",

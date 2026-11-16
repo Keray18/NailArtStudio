@@ -14,7 +14,8 @@
     "prisma:format": "prisma format --schema prisma/schema.prisma",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "catalogue:import": "tsx prisma/importRealCatalogue.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

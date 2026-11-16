@@ -13,6 +13,15 @@ const envSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(100),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  MIN_ORDER_MERCHANDISE_SUBTOTAL: z.coerce.number().positive().default(999),
+  DELIVERY_RATE_PER_KG: z.coerce.number().positive().default(60),
+  PACKAGING_WEIGHT_GRAMS: z.coerce.number().int().nonnegative().default(100),
+  DELIVERY_BILLING_METHOD: z.enum(["CEIL_KG", "PROPORTIONAL", "UNCONFIRMED"]).default("CEIL_KG"),
+  DELIVERY_ENABLED: z.coerce.boolean().default(true),
+  OWNER_SECRET_KEY: z.string().default("tnl_owner_secret_dev_2026"),
+  MERCHANT_UPI_VPA: z.string().default("thenaillounge@okhdfcbank"),
+  MERCHANT_UPI_NAME: z.string().default("The Nail Lounge"),
+  COD_ENABLED: z.coerce.boolean().default(true),
 });
 
 export type Env = z.infer<typeof envSchema>;
