@@ -60,7 +60,11 @@ export class ApiClient {
     baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1",
     defaultTimeout = 8000
   ) {
-    this.baseUrl = baseUrl.replace(/\/+$/, ""); // Remove trailing slashes
+    let clean = baseUrl.trim().replace(/\/+$/, "");
+    if (!clean.endsWith("/api/v1")) {
+      clean = `${clean}/api/v1`;
+    }
+    this.baseUrl = clean;
     this.defaultTimeout = defaultTimeout;
   }
 
